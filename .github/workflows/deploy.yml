@@ -1,0 +1,42 @@
+name: Deploy SDK
+on: workflow_dispatch
+permissions:
+  contents: write
+
+jobs:
+  deploy-sdk:
+    runs-on: ubuntu-20.04
+
+    container:
+      image: debian:bullseye
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install build requirements
+      run: ./.github/scripts/req.sh
+
+    - name: Build SDK
+      run: ./build-sudo.sh
+
+    - name: Compress SDK
+      run: tar --directory=/usr/local --owner=0 --group=0 -zcf ./bullseye-sdk.tar.gz PSDK3v2
+
+    - name: Stash SDK
+      uses: actions/upload-artifact@v2
+      with:
+        name: release-artifact
+        path: ./bullseye-sdk.tar.gz
+
+    - name: Get current date/time
+      id: fnames
+      run: |
+        echo "::set-output name=date::$(date +'%Y.%m.%d')"
+
+    - name: Deploy release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: "SDK Binaries (${{steps.fnames.outputs.date}})"
+        tag_name: "refs/tags/${{steps.fnames.outputs.date}}"
+        files: ./bullseye-sdk.tar.gz
+        prerelease: false
